@@ -8,33 +8,40 @@ The primary use-case is to make building pure HTML sites a little bit easier.
 
 * Process a directory of files
 * Include files in other files
-* Include environment and context variable values in files
+* Set variables to arbitrary values
+* Include environment and scoped variable values in files
 
 ## Usage
 
 ```bash
-csi <input-directory> <output-directory>
+csi <input-directory> <output-directory> [--ext <extension>]...
 ```
 
-CSI will walk the input directory and process all files. If a file begins with `_` it will be skipped.
+For example, given the following command:
 
-## Status
+```bash
+csi src target/dist --ext .html --ext .css
+```
 
-Currently being implemented.
+CSI will walk the input directory and process all files.
 
-TODO: white-list extensions to avoid binary files
+* If a file begins with `_` it will be skipped.
+* If a file ends in `.html` or `.css`, it will be processed and written to the output directory.
+* If a file doesn't, it will be copied verbatim to the output directory.
 
-## Syntax
+Note that the directory structure is perserved.
 
-CSI directives are enclosed in `[]` -- e.g. `[include my-file.html]`. A directive is a space separated list of arguments.
+## Directives
 
-To simplify its behavior, CSI does not trim white-space. If a directive cannot be parsed, it is evaluated to an empty string.
+CSI's features are provided via *directives* which are simple statements in your files.  Directives are enclosed in `[]` -- e.g. `[include raw my-file.html]`. A directive is a space separated list of arguments.
 
-### HTML variable substitution (escapes)
+> To simplify its behavior, CSI does not trim white-space. If a directive cannot be parsed, the program exits with a failure.
 
-You can use the `var` or `let` directives to substitute environment variables into the file. `var` indicates that the variable is optional, while `let` indicates it is required.
+### Variable substitution
 
-If a variable isn't defined, and `var` is used, the directive will evaluate to the empty string.
+You can use the `var` or `opt` directives to substitute environment variables into the file. `var` indicates that the variable is required, while `opt` indicates it is optional.
+
+If a variable isn't defined, and `opt` is used, the directive will evaluate to the empty string.
 
 #### Format
 
@@ -43,7 +50,7 @@ var <format> <variable>
 ```
 
 ```
-let <format> <variable>
+opt <format> <variable>
 ```
 
 Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML document. If `raw`, it will be substituted directly.
@@ -56,7 +63,7 @@ Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML 
 
 ### Set
 
-You can set a variable for use in the current file or includes ones.
+You can set a variable for use in the current file or included ones.
 
 #### Format
 
@@ -64,9 +71,16 @@ You can set a variable for use in the current file or includes ones.
 set <name> <value>
 ```
 
+#### Example
+
+```html
+[set name John]
+[include raw _template.html]
+```
+
 ### Stash
 
-Stash will take the current evaluated content and place it into the specified variable.
+Stash will take all of the current evaluated content and place it into the specified variable. Content after the stash directive is excluded. This is useful for defining some content in a file, and then evaluating it in the context of a template that renders variables. Also known as the decorator pattern.
 
 #### Format
 
@@ -74,9 +88,20 @@ Stash will take the current evaluated content and place it into the specified va
 stash <variable>
 ```
 
+
+#### Example
+
+```html
+<p>This is my content</p>
+
+[stash content][require _layout.html]
+```
+
 ### Includes
 
 You can include files in other files. If a file includes a file that includes itself, that include will be ignored to break the cycle.
+
+File paths are relative to the file that is being processed.
 
 If the file doesn't exist, the directive will evaluate to the empty string.
 
@@ -90,6 +115,8 @@ Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML 
 
 *When using `raw`, be sure that you're not subjecting yourself to XSS attacks.*
 
+#### Example
+
 ```html
 <pre>[include raw /etc/passwd]</pre>
 ```
@@ -97,6 +124,8 @@ Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML 
 ### Requires
 
 You can require files in other files. If a file includes a file that includes itself, the program will exit with a failure.
+
+File paths are relative to the file that is being processed.
 
 If the file doesn't exist, the program will exit with a failure.
 
@@ -109,6 +138,8 @@ require <format> [path]
 Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML document. If `raw`, it will be substituted directly.
 
 *When using `raw`, be sure that you're not subjecting yourself to XSS attacks.*
+
+#### Example
 
 ```html
 <pre>[require raw /etc/passwd]</pre>

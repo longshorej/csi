@@ -65,10 +65,8 @@ impl Context for FsContext {
     }
 
     fn load_var(&self, name: &str) -> Option<String> {
-        // @TODO only allow CSI_ vars to come from local
         match self.vars.get(name) {
             Some(value) => Some(value.to_string()),
-
             None => env::var(name).ok(),
         }
     }
@@ -82,22 +80,42 @@ impl Context for FsContext {
     }
 }
 
-fn compile_directive<C: Context>(
+fn process_directive<C: Context>(
     context: &mut C,
     directive: String,
     content: &mut Vec<char>,
 ) -> io::Result<String> {
-    let let_html = directive.starts_with("let html");
-    let let_raw = directive.starts_with("let raw");
-    let var_html = directive.starts_with("var html ");
-    let var_raw = directive.starts_with("var raw ");
+    let var_html = directive.starts_with("var html");
+    let var_raw = directive.starts_with("var raw");
+    let opt_html = directive.starts_with("opt html ");
+    let opt_raw = directive.starts_with("opt raw ");
     let include_html = directive.starts_with("include html ");
     let include_raw = directive.starts_with("include raw ");
     let require_html = directive.starts_with("require html ");
     let require_raw = directive.starts_with("require raw ");
+    let set = directive.starts_with("set ");
     let stash = directive.starts_with("stash ");
 
-    if stash {
+    if set {
+        let (_, entry) = directive.split_at(4);
+
+        match entry.find(" ") {
+            Some(p) if p < entry.len() - 1 => {
+                let (name, value) = entry.split_at(p);
+                let name = name.to_string();
+                let value = value[1..].to_string();
+
+                context.add_var(name, value);
+
+                Ok("".to_string())
+            }
+
+            _ => Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("invalid set format: {}", entry),
+            )),
+        }
+    } else if stash {
         let (_, var) = directive.split_at(6);
         let c = content.iter().collect::<String>();
 
@@ -105,19 +123,19 @@ fn compile_directive<C: Context>(
         context.add_var(var.to_string(), c);
 
         Ok("".to_string())
-    } else if var_html || var_raw || let_html || let_raw {
-        let (_, var) = directive.split_at(if var_html { 9 } else { 8 });
+    } else if opt_html || opt_raw || var_html || var_raw {
+        let (_, var) = directive.split_at(if opt_html { 9 } else { 8 });
 
         match context.load_var(var) {
             Some(value) => {
-                if var_html || let_html {
+                if opt_html || var_html {
                     Ok(escape_text(&value))
                 } else {
                     Ok(value)
                 }
             }
 
-            None if let_html || let_raw => Err(io::Error::new(
+            None if var_html || var_raw => Err(io::Error::new(
                 io::ErrorKind::Other,
                 format!("cannot find variable: {}", var),
             )),
@@ -142,7 +160,7 @@ fn compile_directive<C: Context>(
 
             let original_vars = context.export_vars();
 
-            let result = compile_path(context, &path, require_html || require_raw);
+            let result = process_path(context, &path, require_html || require_raw);
 
             context.replace_vars(original_vars);
 
@@ -155,11 +173,14 @@ fn compile_directive<C: Context>(
             })
         }
     } else {
-        Ok("".to_string())
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("invalid directive: {}", directive),
+        ))
     }
 }
 
-fn compile_path<C: Context>(
+fn process_path<C: Context>(
     context: &mut C,
     path: &path::Path,
     required: bool,
@@ -172,7 +193,7 @@ fn compile_path<C: Context>(
     }
 
     context.add_active(path.to_str().unwrap_or_default());
-    let result = compile(context, &raw_content);
+    let result = process(context, &raw_content);
     context.remove_active(path.to_str().unwrap_or_default());
 
     env::set_current_dir(original_dir)?;
@@ -180,7 +201,7 @@ fn compile_path<C: Context>(
     result
 }
 
-fn compile<C: Context>(context: &mut C, content: &str) -> io::Result<String> {
+fn process<C: Context>(context: &mut C, content: &str) -> io::Result<String> {
     let mut chars = content.chars().peekable();
 
     let mut escaped = false;
@@ -225,7 +246,7 @@ fn compile<C: Context>(context: &mut C, content: &str) -> io::Result<String> {
 
                 let directive: String = directive.iter().collect();
 
-                for d in compile_directive(context, directive, &mut content)?.chars() {
+                for d in process_directive(context, directive, &mut content)?.chars() {
                     content.push(d);
                 }
             }
@@ -249,7 +270,12 @@ fn compile<C: Context>(context: &mut C, content: &str) -> io::Result<String> {
     Ok(content.iter().collect())
 }
 
-fn run(root: &path::Path, src: &path::Path, dest: &path::Path) -> io::Result<()> {
+fn run(
+    root: &path::Path,
+    src: &path::Path,
+    dest: &path::Path,
+    extensions: &Vec<&str>,
+) -> io::Result<()> {
     let mut context = FsContext::new();
 
     let root = path::Path::new(root);
@@ -262,30 +288,38 @@ fn run(root: &path::Path, src: &path::Path, dest: &path::Path) -> io::Result<()>
             let path = entry.path();
 
             if path.is_dir() {
-                run(root, &path, dest)?;
-            } else if !path
-                .file_name()
-                .map(|n| n.to_string_lossy().starts_with("_"))
-                .unwrap_or(false)
-            {
-                let dest = dest.join(
-                    path.strip_prefix(root)
-                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
-                );
+                run(root, &path, dest, extensions)?;
+            } else {
+                let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
-                let src_compiled = compile_path(&mut context, &path.canonicalize()?, true)?;
+                if !name.starts_with("_") {
+                    let process = extensions.iter().any(|e| name.ends_with(e));
 
-                if let Some(dest_parent) = dest.parent() {
-                    fs::create_dir_all(dest_parent)?;
+                    let dest = dest.join(
+                        path.strip_prefix(root)
+                            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+                    );
+
+                    if let Some(dest_parent) = dest.parent() {
+                        fs::create_dir_all(dest_parent)?;
+                    }
+
+                    let path = path.canonicalize()?;
+
+                    if process {
+                        let src_processed = process_path(&mut context, &path, true)?;
+
+                        let mut dest_file = fs::OpenOptions::new()
+                            .write(true)
+                            .truncate(true)
+                            .create(true)
+                            .open(dest)?;
+
+                        dest_file.write_all(src_processed.as_bytes())?;
+                    } else {
+                        fs::copy(path, dest)?;
+                    }
                 }
-
-                let mut dest_file = fs::OpenOptions::new()
-                    .write(true)
-                    .truncate(true)
-                    .create(true)
-                    .open(dest)?;
-
-                dest_file.write_all(src_compiled.as_bytes())?;
             }
         }
     }
@@ -296,17 +330,38 @@ fn run(root: &path::Path, src: &path::Path, dest: &path::Path) -> io::Result<()>
 fn main() -> io::Result<()> {
     let args = env::args().collect::<Vec<String>>();
 
-    if args.len() == 3 {
+    if args.len() >= 3 {
         let root = path::Path::new(&args[1]);
         let src = path::Path::new(&args[1]);
         let dest = path::Path::new(&args[2]);
 
-        run(&root, &src, &dest)?;
+        let mut extensions = Vec::new();
+        let mut args_iter = args[3..].iter();
+
+        while let Some(a) = args_iter.next() {
+            if a == "--ext" {
+                match args_iter.next() {
+                    Some(e) => {
+                        extensions.push(e.as_str());
+                    }
+
+                    None => {
+                        println!("--ext must be followed by an extension");
+                        process::exit(1);
+                    }
+                }
+            } else {
+                println!("unknown argument: {}", a);
+                process::exit(1);
+            }
+        }
+
+        run(&root, &src, &dest, &extensions)?;
 
         process::exit(0)
     } else {
         println!(
-            "{} <src-dir> <dest-dir>",
+            "{} <src-dir> <dest-dir> <name-pattern>",
             args.get(0).map(|s| s.as_str()).unwrap_or("csi")
         );
         process::exit(1);
