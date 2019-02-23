@@ -23,7 +23,6 @@ CSI will walk the input directory and process all files. If a file begins with `
 Currently being implemented.
 
 TODO: white-list extensions to avoid binary files
-TODO: actually skip _ files
 
 ## Syntax
 
@@ -55,13 +54,25 @@ Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML 
 <p>Hello [var html MY_VAR]</p>
 ```
 
-#### Context Variables
+### Set
 
-In addition to environment variables, the following context variables are available for use:
+You can set a variable for use in the current file or includes ones.
 
-| Name                  | Value                                                              |
-| --------------------- | ------------------------------------------------------------------ |
-| CSI_SURROUNDED        |                                                                    |
+#### Format
+
+```
+set <name> <value>
+```
+
+### Stash
+
+Stash will take the current evaluated content and place it into the specified variable.
+
+#### Format
+
+```
+stash <variable>
+```
 
 ### Includes
 
@@ -101,30 +112,4 @@ Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML 
 
 ```html
 <pre>[require raw /etc/passwd]</pre>
-```
-
-### Wraps
-
-You can indicate that a file should be wrapped with the contents of another file. This requires a directive to be specified in both files.
-
-#### Surrounded File
-
-In the file that is to be surrounded (i.e. included in another one), use the `wrapped` directive with the name of the file. This should normally be the last directive in a file, as only the contents that have been evaluated so far will be surrounded.
-
-```
-Here is some content.
-
-[surround raw layout.html]
-```
-
-#### Surrounding File
-
-In the file that will surround, typically a layout or template file, use a `let` or `var` directive to include the content. CSI will ensure that the `CSI_WRAPPED` variable is available.
-
-```
-<html>
-<body>
-[let raw CSI_WRAPPED]
-</body>
-</html>
 ```

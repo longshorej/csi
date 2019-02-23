@@ -2,6 +2,8 @@ use std::{collections, env, fs, io, io::prelude::*, path, process};
 
 trait Context {
     fn active(&self, name: &str) -> bool;
+    fn export_vars(&self) -> collections::HashMap<String, String>;
+    fn replace_vars(&mut self, vars: collections::HashMap<String, String>);
     fn load_file(&self, path: &path::Path, required: bool) -> io::Result<String>;
     fn load_var(&self, name: &str) -> Option<String>;
     fn add_var(&mut self, name: String, value: String);
@@ -25,6 +27,14 @@ impl FsContext {
 }
 
 impl Context for FsContext {
+    fn export_vars(&self) -> collections::HashMap<String, String> {
+        self.vars.clone()
+    }
+
+    fn replace_vars(&mut self, vars: collections::HashMap<String, String>) {
+        self.vars = vars;
+    }
+
     fn add_var(&mut self, name: String, value: String) {
         self.vars.insert(name, value);
     }
@@ -85,10 +95,17 @@ fn compile_directive<C: Context>(
     let include_raw = directive.starts_with("include raw ");
     let require_html = directive.starts_with("require html ");
     let require_raw = directive.starts_with("require raw ");
-    let wrapped_html = directive.starts_with("wrapped html");
-    let wrapped_raw = directive.starts_with("wrapped raw");
+    let stash = directive.starts_with("stash ");
 
-    if var_html || var_raw || let_html || let_raw {
+    if stash {
+        let (_, var) = directive.split_at(6);
+        let c = content.iter().collect::<String>();
+
+        content.clear();
+        context.add_var(var.to_string(), c);
+
+        Ok("".to_string())
+    } else if var_html || var_raw || let_html || let_raw {
         let (_, var) = directive.split_at(if var_html { 9 } else { 8 });
 
         match context.load_var(var) {
@@ -107,18 +124,8 @@ fn compile_directive<C: Context>(
 
             None => Ok("".to_string()),
         }
-    } else if include_html
-        || include_raw
-        || require_html
-        || require_raw
-        || wrapped_html
-        || wrapped_raw
-    {
-        let (_, path) = directive.split_at(if include_html || require_html || wrapped_html {
-            13
-        } else {
-            12
-        });
+    } else if include_html || include_raw || require_html || require_raw {
+        let (_, path) = directive.split_at(if include_html || require_html { 13 } else { 12 });
 
         if context.active(path) {
             if require_html || require_raw {
@@ -133,21 +140,11 @@ fn compile_directive<C: Context>(
             let original_dir = env::current_dir()?;
             let path = original_dir.join(path);
 
-            if wrapped_html || wrapped_raw {
-                // @TODO a name
-                context.add_var("CSI_WRAPPED".to_string(), content.iter().collect());
-                println!("set var!");
-            }
+            let original_vars = context.export_vars();
 
             let result = compile_path(context, &path, require_html || require_raw);
 
-            if wrapped_html || wrapped_raw {
-                context.remove_var("CSI_WRAPPED");
-            }
-
-            if result.is_ok() {
-                content.clear();
-            }
+            context.replace_vars(original_vars);
 
             result.map(|value| {
                 if include_html {
@@ -266,9 +263,11 @@ fn run(root: &path::Path, src: &path::Path, dest: &path::Path) -> io::Result<()>
 
             if path.is_dir() {
                 run(root, &path, dest)?;
-            } else {
-                // @TODO skip _
-
+            } else if !path
+                .file_name()
+                .map(|n| n.to_string_lossy().starts_with("_"))
+                .unwrap_or(false)
+            {
                 let dest = dest.join(
                     path.strip_prefix(root)
                         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
