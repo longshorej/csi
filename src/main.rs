@@ -1,32 +1,18 @@
 use std::{collections, env, fs, io, io::prelude::*, path, process};
 
-trait Context {
-    fn active(&self, name: &str) -> bool;
-    fn export_vars(&self) -> collections::HashMap<String, String>;
-    fn replace_vars(&mut self, vars: collections::HashMap<String, String>);
-    fn load_file(&self, path: &path::Path, required: bool) -> io::Result<String>;
-    fn load_var(&self, name: &str) -> Option<String>;
-    fn add_var(&mut self, name: String, value: String);
-    fn add_active(&mut self, name: &str);
-    fn remove_active(&mut self, name: &str);
-    fn remove_var(&mut self, name: &str);
-}
-
-struct FsContext {
+struct Context {
     active: collections::HashSet<String>,
     vars: collections::HashMap<String, String>,
 }
 
-impl FsContext {
+impl Context {
     fn new() -> Self {
         let active = collections::HashSet::new();
         let vars = collections::HashMap::new();
 
         Self { active, vars }
     }
-}
 
-impl Context for FsContext {
     fn export_vars(&self) -> collections::HashMap<String, String> {
         self.vars.clone()
     }
@@ -35,12 +21,8 @@ impl Context for FsContext {
         self.vars = vars;
     }
 
-    fn add_var(&mut self, name: String, value: String) {
+    fn set_var(&mut self, name: String, value: String) {
         self.vars.insert(name, value);
-    }
-
-    fn remove_var(&mut self, name: &str) {
-        self.vars.remove(name);
     }
 
     fn active(&self, name: &str) -> bool {
@@ -80,8 +62,8 @@ impl Context for FsContext {
     }
 }
 
-fn process_directive<C: Context>(
-    context: &mut C,
+fn process_directive(
+    context: &mut Context,
     directive: String,
     content: &mut Vec<char>,
 ) -> io::Result<String> {
@@ -105,7 +87,7 @@ fn process_directive<C: Context>(
                 let name = name.to_string();
                 let value = value[1..].to_string();
 
-                context.add_var(name, value);
+                context.set_var(name, value);
 
                 Ok("".to_string())
             }
@@ -120,7 +102,7 @@ fn process_directive<C: Context>(
         let c = content.iter().collect::<String>();
 
         content.clear();
-        context.add_var(var.to_string(), c);
+        context.set_var(var.to_string(), c);
 
         Ok("".to_string())
     } else if opt_html || opt_raw || var_html || var_raw {
@@ -180,28 +162,7 @@ fn process_directive<C: Context>(
     }
 }
 
-fn process_path<C: Context>(
-    context: &mut C,
-    path: &path::Path,
-    required: bool,
-) -> io::Result<String> {
-    let raw_content = context.load_file(&path, required)?;
-    let original_dir = env::current_dir()?;
-
-    if let Some(parent) = path.parent() {
-        env::set_current_dir(parent)?;
-    }
-
-    context.add_active(path.to_str().unwrap_or_default());
-    let result = process(context, &raw_content);
-    context.remove_active(path.to_str().unwrap_or_default());
-
-    env::set_current_dir(original_dir)?;
-
-    result
-}
-
-fn process<C: Context>(context: &mut C, content: &str) -> io::Result<String> {
+fn process(context: &mut Context, content: &str) -> io::Result<String> {
     let mut chars = content.chars().peekable();
 
     let mut escaped = false;
@@ -270,13 +231,34 @@ fn process<C: Context>(context: &mut C, content: &str) -> io::Result<String> {
     Ok(content.iter().collect())
 }
 
+fn process_path(
+    context: &mut Context,
+    path: &path::Path,
+    required: bool,
+) -> io::Result<String> {
+    let raw_content = context.load_file(&path, required)?;
+    let original_dir = env::current_dir()?;
+
+    if let Some(parent) = path.parent() {
+        env::set_current_dir(parent)?;
+    }
+
+    context.add_active(path.to_str().unwrap_or_default());
+    let result = process(context, &raw_content);
+    context.remove_active(path.to_str().unwrap_or_default());
+
+    env::set_current_dir(original_dir)?;
+
+    result
+}
+
 fn run(
     root: &path::Path,
     src: &path::Path,
     dest: &path::Path,
     extensions: &Vec<&str>,
 ) -> io::Result<()> {
-    let mut context = FsContext::new();
+    let mut context = Context::new();
 
     let root = path::Path::new(root);
     let src = path::Path::new(src);
