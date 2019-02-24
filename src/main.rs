@@ -351,8 +351,9 @@ fn main() -> io::Result<()> {
 
         process::exit(0)
     } else {
+        println!("csi version: {}", env!("CARGO_PKG_VERSION"));
         println!(
-            "{} <src-dir> <dest-dir> <name-pattern>",
+            "usage: {} <src-dir> <dest-dir> <name-pattern>",
             args.get(0).map(|s| s.as_str()).unwrap_or("csi")
         );
         process::exit(1);
