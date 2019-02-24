@@ -1,5 +1,9 @@
 # CSI
 
+[![Crates.io](https://img.shields.io/crates/v/csi.svg?style=flat-square)](https://crates.io/crates/csi)
+[![Crates.io](https://img.shields.io/crates/d/csi.svg?style=flat-square)](https://crates.io/crates/csi)
+[![CircleCI](https://img.shields.io/circleci/project/github/longshorej/csi/master.svg?style=flat-square)](https://circleci.com/gh/longshorej/csi)
+
 CSI -- client-side includes - is a tool for processing a directory of text files. It allows you to define files that include other files, and substitute variables.
 
 The primary use-case is to make building pure HTML sites a little bit easier.
