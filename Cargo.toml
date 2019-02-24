@@ -1,8 +1,14 @@
 [package]
 name = "csi"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Jason Longshore <hello@jasonlongshore.com>"]
 edition = "2018"
+keywords = ["html", "static", "website", "include", "builder"]
+license = "Apache-2.0"
+repository = "https://github.com/longshorej/csi"
+homepage = "https://github.com/longshorej/csi"
+description = "A tool for processing a directory of text files. Particularly useful for building static websites."
+readme = "README.md"
 
 [dependencies]
 
