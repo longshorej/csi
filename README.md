@@ -11,6 +11,14 @@ The primary use-case is to make building pure HTML sites a little bit easier.
 * Set variables to arbitrary values
 * Include environment and scoped variable values in files
 
+## Install
+
+You can use `cargo` to install the tool.
+
+```bash
+cargo install csi
+```
+
 ## Usage
 
 ```bash
