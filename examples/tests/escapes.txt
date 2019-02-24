@@ -1,0 +1,13 @@
+[set test 0]
+[set t\est 1]
+[set t\]est 2]
+[set t\ 3]
+
+test 1: [var raw test]
+test 2: \[var raw test]
+test 3: [var raw test]
+test 4: \\[var raw test]
+test 5: \\\[var raw test]
+test 6: [var raw t\est]
+test 7: [var raw t\]est]
+test 8: [var raw t\\]est]

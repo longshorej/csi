@@ -31,9 +31,7 @@ impl Context {
 
     fn load_file(&self, path: &path::Path, required: bool) -> io::Result<String> {
         if path.exists() {
-            let mut file = fs::File::open(path)?;
-            let mut contents = String::new();
-            file.read_to_string(&mut contents)?;
+            let contents = load_file(path)?;
 
             Ok(contents)
         } else if required {
@@ -172,11 +170,13 @@ fn process(context: &mut Context, content: &str) -> io::Result<String> {
         match c {
             _ if escaped => {
                 content.push(c);
+                escaped = false;
             }
 
             '[' => {
                 let mut directive = Vec::new();
                 let mut escaped = false;
+                let mut open = true;
 
                 while let Some(d) = chars.next() {
                     match d {
@@ -186,6 +186,7 @@ fn process(context: &mut Context, content: &str) -> io::Result<String> {
                         }
 
                         ']' => {
+                            open = false;
                             break;
                         }
 
@@ -206,6 +207,14 @@ fn process(context: &mut Context, content: &str) -> io::Result<String> {
                 }
 
                 let directive: String = directive.iter().collect();
+
+                if open {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("invalid directive: {}", directive),
+                    ));
+                }
+
 
                 for d in process_directive(context, directive, &mut content)?.chars() {
                     content.push(d);
@@ -363,8 +372,20 @@ fn escape_text(text: &str) -> String {
         .collect()
 }
 
+fn load_file(path: &path::Path) -> io::Result<String> {
+    let mut file = fs::File::open(path)?;
+    let mut contents = String::new();
+
+    file.read_to_string(&mut contents)?;
+
+    Ok(contents)
+}
+
 #[cfg(test)]
 mod tests {
+    extern crate tempdir;
+
+    use std::env;
     use super::*;
 
     #[test]
@@ -383,5 +404,77 @@ mod tests {
             escape_text("<hello world /> \"123\" wow! & stuff' yeah"),
             "&lt;hello world /&gt; &quot;123&quot; wow! &amp; stuff&apos; yeah"
         )
+    }
+
+    #[test]
+    fn test_examples() {
+        let dest = tempdir::TempDir::new("csi").unwrap();
+        let d = dest.path();
+        let src = env::current_dir().unwrap().join("examples");
+
+        run(&src, &src, d, &vec![".txt", ".html"]).unwrap();
+
+        assert_eq!(load_file(&d.join("basic-site/home.html")).unwrap().trim(), r#"
+<!doctype html>
+<html>
+  <head>
+    <title>Home</title>
+  </head>
+  <body>
+    <div id="header">
+      Welcome to WidgetCo!
+    </div>
+    <div id="content">
+
+<p>This is the home page.</p>
+
+</div>
+    <div id="footer">
+      &copy; 2019 WidgetCo
+    </div>
+  </body>
+</html>
+"#.trim());
+
+        assert_eq!(load_file(&d.join("basic-site/support.html")).unwrap().trim(), r#"
+<!doctype html>
+<html>
+  <head>
+    <title>Support</title>
+  </head>
+  <body>
+    <div id="header">
+      Welcome to WidgetCo!
+    </div>
+    <div id="content">
+
+<p>This is the support page.</p>
+
+</div>
+    <div id="footer">
+      &copy; 2019 WidgetCo
+    </div>
+  </body>
+</html>
+"#.trim());
+
+        assert_eq!(load_file(&d.join("tests/escapes.txt")).unwrap().trim(), r#"
+test 1: 0
+test 2: [var raw test]
+test 3: 0
+test 4: \0
+test 5: \[var raw test]
+test 6: 1
+test 7: 2
+test 8: 3est]
+"#.trim());
+
+        assert!(!d.join("tests/_not-copied").exists());
+
+        assert_eq!(load_file(&d.join("tests/copied-verbatim")).unwrap().trim(), r#"
+[var raw test]
+"#.trim());
+
+        dest.close().unwrap();
     }
 }
