@@ -1,0 +1,27 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/project
+    docker:
+    - image: circleci/rust:latest
+    steps:
+    - checkout
+    - restore_cache:
+        key: cargo-cache-1
+    - run:
+        name: Add rustmt
+        command: |
+          rustup component add rustfmt-preview
+    - run:
+        name: Ensure source code is formatted
+        command: |
+          cargo fmt && git diff --quiet
+    - run:
+        name: Build & Test
+        command: |
+          cargo build --release
+          cargo test --release --no-fail-fast
+    - save_cache:
+        key: cargo-cache-1
+        paths:
+        - "~/.cargo"

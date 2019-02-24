@@ -215,7 +215,6 @@ fn process(context: &mut Context, content: &str) -> io::Result<String> {
                     ));
                 }
 
-
                 for d in process_directive(context, directive, &mut content)?.chars() {
                     content.push(d);
                 }
@@ -240,11 +239,7 @@ fn process(context: &mut Context, content: &str) -> io::Result<String> {
     Ok(content.iter().collect())
 }
 
-fn process_path(
-    context: &mut Context,
-    path: &path::Path,
-    required: bool,
-) -> io::Result<String> {
+fn process_path(context: &mut Context, path: &path::Path, required: bool) -> io::Result<String> {
     let raw_content = context.load_file(&path, required)?;
     let original_dir = env::current_dir()?;
 
@@ -386,8 +381,8 @@ fn load_file(path: &path::Path) -> io::Result<String> {
 mod tests {
     extern crate tempdir;
 
-    use std::env;
     use super::*;
+    use std::env;
 
     #[test]
     fn escape_text_works_empty() {
@@ -415,7 +410,9 @@ mod tests {
 
         run(&src, &src, d, &vec![".txt", ".html"]).unwrap();
 
-        assert_eq!(load_file(&d.join("basic-site/home.html")).unwrap().trim(), r#"
+        assert_eq!(
+            load_file(&d.join("basic-site/home.html")).unwrap().trim(),
+            r#"
 <!doctype html>
 <html>
   <head>
@@ -435,9 +432,15 @@ mod tests {
     </div>
   </body>
 </html>
-"#.trim());
+"#
+            .trim()
+        );
 
-        assert_eq!(load_file(&d.join("basic-site/support.html")).unwrap().trim(), r#"
+        assert_eq!(
+            load_file(&d.join("basic-site/support.html"))
+                .unwrap()
+                .trim(),
+            r#"
 <!doctype html>
 <html>
   <head>
@@ -457,9 +460,13 @@ mod tests {
     </div>
   </body>
 </html>
-"#.trim());
+"#
+            .trim()
+        );
 
-        assert_eq!(load_file(&d.join("tests/escapes.txt")).unwrap().trim(), r#"
+        assert_eq!(
+            load_file(&d.join("tests/escapes.txt")).unwrap().trim(),
+            r#"
 test 1: 0
 test 2: [var raw test]
 test 3: 0
@@ -468,13 +475,19 @@ test 5: \[var raw test]
 test 6: 1
 test 7: 2
 test 8: 3est]
-"#.trim());
+"#
+            .trim()
+        );
 
         assert!(!d.join("tests/_not-copied").exists());
 
-        assert_eq!(load_file(&d.join("tests/copied-verbatim")).unwrap().trim(), r#"
+        assert_eq!(
+            load_file(&d.join("tests/copied-verbatim")).unwrap().trim(),
+            r#"
 [var raw test]
-"#.trim());
+"#
+            .trim()
+        );
 
         dest.close().unwrap();
     }
