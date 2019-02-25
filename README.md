@@ -17,7 +17,9 @@ The primary use-case is to make building pure HTML sites a little bit easier.
 
 ## Install
 
-You can use `cargo` to install the tool.
+You can find static binaries for Linux and macOS on the [Github Releases](https://github.com/longshorej/csi/releases) page.
+
+Alternatively, you can use `cargo` to install the tool on any platform that Rust supports.
 
 ```bash
 cargo install csi
@@ -159,6 +161,11 @@ Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML 
 
 ## Changelog
 
+### 1.0.1 - 2019-02-24
+
+* No functionality changes.
+* Built and released using automated pipeline on TravisCI.
+
 ### 1.0.0 - 2019-02-24
 
-Initial release.
+* Initial release.
