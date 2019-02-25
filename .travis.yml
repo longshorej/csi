@@ -15,9 +15,11 @@ script: |
   target=
   version=
 
-  if git name-rev --name-only HEAD | grep '^tags/v' &>/dev; then
+  tag="$(git name-rev --name-only HEAD)"
+
+  if [[ "$tag" == tags/v* ]]; then
     release=1
-    version="$(git describe --tags | sed 's/^v//')"
+    version="$(sed 's/^tags\/v//' <<< $tag)"
   fi
 
   if [ "$release" = 1 ]; then
@@ -64,6 +66,7 @@ deploy:
   provider: releases
   api_key:
     secure: bwzMowWoWUm34k6qp5z/GKcNh26bSwwfaL/pCBtN6SBFQO0Jo5ZI0BUa5bZAzM93tR70/QyThirxSxtKEa0dLZ9er9Hk854QFLKqG0OC8Hv5A0WS0BSEkecA4N/OpNOo7wjDkYIAKXC870ojIDVwZC7644lNBvBacAUHTvGaFu3+qO9o9qAEfVb6Z28r41cINUYm12qqVFcQrAO8SZgBOxMEhlx9p6aNeZ0vwJVUdcTNOn91pPvAjt1I+9Rcdfn/Sbg+DPNpf8IHCe0zKnXSIefJrdwWgUBgn/Bcj7d0yPFtxVgiOBhHT4kh6aK84L1pPIYi0/ULZmWM8SMaZLNM9BVA5N4y4gBYArxqNcR1/6kHgHe0rMAko8lRX8JP6jEov3p0MN1CO7zSOa2U/njZYqi93VMuAvvKiAR9lKfezVwvU2ER3EBjijCBPoaXmVmGrY8219pSMA62D+oJUBoc94d4AfjuunOcYrTfpwiWXftoXq5TPwOTsk2QQvyOczVLzqrGeOmYqa6nk+oQ5Hf0ukgC0lxL0pxhGv6q6tNKHSfkVWBRkM4pn2TZ04JqBvuovbL7Ctomd5uc46tGAqvnhqjUSbQ0BTK9BFpQPSBY6yQilvMz8ag6ARpmVpSyy4bOQZKiVXPIpQnc0RFiWqmi8d/EOXN0h9KS3NI1jP9/mP0=
+  file_glob: true
   file: target/upload/*
   on:
     tags: true
