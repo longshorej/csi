@@ -156,3 +156,9 @@ Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML 
 ```html
 <pre>[require raw /etc/passwd]</pre>
 ```
+
+## Changelog
+
+### 1.0.0 - 2019-02-24
+
+Initial release.
