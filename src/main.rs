@@ -411,7 +411,10 @@ mod tests {
         run(&src, &src, d, &vec![".txt", ".html"]).unwrap();
 
         assert_eq!(
-            load_file(&d.join("basic-site/home.html")).unwrap().trim(),
+            load_file(&d.join("basic-site/home.html"))
+                .unwrap()
+                .replace("\r", "")
+                .trim(),
             r#"
 <!doctype html>
 <html>
@@ -433,12 +436,14 @@ mod tests {
   </body>
 </html>
 "#
+            .replace("\r", "")
             .trim()
         );
 
         assert_eq!(
             load_file(&d.join("basic-site/support.html"))
                 .unwrap()
+                .replace("\r", "")
                 .trim(),
             r#"
 <!doctype html>
@@ -461,11 +466,15 @@ mod tests {
   </body>
 </html>
 "#
+            .replace("\r", "")
             .trim()
         );
 
         assert_eq!(
-            load_file(&d.join("tests/escapes.txt")).unwrap().trim(),
+            load_file(&d.join("tests/escapes.txt"))
+                .unwrap()
+                .replace("\r", "")
+                .trim(),
             r#"
 test 1: 0
 test 2: [var raw test]
@@ -482,10 +491,14 @@ test 8: 3est]
         assert!(!d.join("tests/_not-copied").exists());
 
         assert_eq!(
-            load_file(&d.join("tests/copied-verbatim")).unwrap().trim(),
+            load_file(&d.join("tests/copied-verbatim"))
+                .unwrap()
+                .replace("\r", "")
+                .trim(),
             r#"
 [var raw test]
 "#
+            .replace("\r", "")
             .trim()
         );
 

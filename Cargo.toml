@@ -1,6 +1,6 @@
 [package]
 name = "csi"
-version = "1.0.0"
+version = "0.0.1"
 authors = ["Jason Longshore <hello@jasonlongshore.com>"]
 edition = "2018"
 keywords = ["html", "static", "website", "include", "builder"]
