@@ -104,7 +104,7 @@ fn process_directive(
 
         Ok("".to_string())
     } else if opt_html || opt_raw || var_html || var_raw {
-        let (_, var) = directive.split_at(if opt_html { 9 } else { 8 });
+        let (_, var) = directive.split_at(if var_html || opt_html { 9 } else { 8 });
 
         match context.load_var(var) {
             Some(value) => {
@@ -484,6 +484,7 @@ test 5: \[var raw test]
 test 6: 1
 test 7: 2
 test 8: 3est]
+test 9: &lt;p&gt;hello&lt;/p&gt;
 "#
             .trim()
         );
