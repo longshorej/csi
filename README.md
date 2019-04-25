@@ -161,6 +161,10 @@ Format may be `html` or `raw`. If `html`, it will be escaped for use in an HTML 
 
 ## Changelog
 
+### 1.0.2 - 2019-04-25
+
+* Fix a bug breaking `[var html <name>]` usage
+
 ### 1.0.1 - 2019-02-24
 
 * No functionality changes.
