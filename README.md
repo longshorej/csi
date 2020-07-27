@@ -4,7 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/d/csi.svg?style=flat-square)](https://crates.io/crates/csi)
 [![Travis CI](https://img.shields.io/travis/longshorej/csi.svg?style=flat-square)](https://travis-ci.org/longshorej/csi)
 
-CSI -- client-side includes - is a tool for processing a directory of text files. It allows you to define files that include other files, and substitute variables.
+CSI -- client-side includes - is an ad hoc informally specified tool for processing a directory of text files. It allows you to define files that include other files, and substitute variables.
 
 The primary use-case is to make building pure HTML sites a little bit easier.
 
